@@ -212,7 +212,8 @@ def is_port_open?(response)
 end
 
 def generate_requests(xml_rpcs, target)
-  port_range = @options.all_ports ? (0...65535) : [21, 22, 25, 53, 80, 106, 110, 143, 443, 3306, 3389, 8443, 9999]
+  port_range = @options.all_ports ? (0...65535) : @options.ports
+  port_range.shuffle! if @options.randomize
   port_range.each do |i|
     random = (0...8).map { 65.+(rand(26)).chr }.join
     xml_rpc_hash = xml_rpcs.sample
@@ -252,7 +253,9 @@ begin
 
   @options = OpenStruct.new
   @options.target = 'http://localhost'
+  @options.ports = [21, 22, 25, 53, 80, 106, 110, 143, 443, 3306, 3389, 8443, 9999]
   @options.all_ports = false
+  @options.randomize = false
   @options.verbose = false
 
   opt_parser = OptionParser.new do |opts|
@@ -272,6 +275,14 @@ begin
 
     opts.on('-a', '--all-ports', 'Scan all ports. Default is to scan only some common ports') do |value|
       @options.all_ports = value
+    end
+
+    opts.on('-p', '--ports PORTS', 'A comma-separated list of ports to scan') do |value|
+      @options.ports = value.split(',').map(&:strip).map(&:to_i)
+    end
+
+    opts.on('-r', '--randomize', 'Randomize port numbers for possible IDS evasion') do |value|
+      @options.randomize = value
     end
 
     opts.on('-v', '--verbose', 'Enable verbose output') do |value|

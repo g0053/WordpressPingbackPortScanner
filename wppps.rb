@@ -7,6 +7,7 @@ require 'optparse'
 require 'typhoeus'
 require 'uri'
 require 'ostruct'
+require 'ipaddr'
 
 class Array
   alias_method :sample, :choice unless method_defined?(:sample)
@@ -266,10 +267,12 @@ begin
     opts.separator 'Specific options:'
 
     opts.on('-t', '--target TARGET', 'the target to scan - default localhost') do |value|
-      if value !~ /^http/
-        @options.target = "http://#{value}"
+      if value =~ /\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}\z/
+        @options.target = IPAddr.new(value).to_range.map { |ip| "http://#{ip}" }
+      elsif value !~ /^http/
+        @options.target = ["http://#{value}"]
       else
-        @options.target = value
+        @options.target = [value]
       end
     end
 
@@ -318,9 +321,12 @@ begin
 
   puts 'Getting valid blog posts for pingback...'
   hash = get_valid_blog_post(xml_rpcs)
-  puts 'Starting portscan...'
-  generate_requests(hash, @options.target)
-  @hydra.run
+
+  @options.target.each do |t|
+    puts "\nScanning #{t.gsub(/https?:\/\//, '')}..."
+    generate_requests(hash, t)
+    @hydra.run
+  end
 rescue => e
   puts red("[ERROR] #{e.message}")
   puts red('Trace :')
